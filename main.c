@@ -346,7 +346,7 @@ int main(int argc, char **argv){
     gfx.win = SDL_CreateWindow("Sort Viz SDL2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gfx.w, gfx.h,
                                SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
     gfx.ren = SDL_CreateRenderer(gfx.win, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
-    gfx.font= TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16);
+    gfx.font= TTF_OpenFont("Coolvetica Rg.otf", 16);
     if(!gfx.win || !gfx.ren || !gfx.font){ fprintf(stderr,"Init error: %s | %s\n", SDL_GetError(), TTF_GetError()); return 1; }
 
     perf_freq_ms = 1000.0 / (double)SDL_GetPerformanceFrequency();
