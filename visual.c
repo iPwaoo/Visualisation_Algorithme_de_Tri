@@ -4,32 +4,6 @@
 #include "common.h"
 #include "utils.h"
 
-// --- Rainbow: conversion HSV -> RGB ---
-static void hsv_to_rgb(float h, float s, float v, Uint8 *r, Uint8 *g, Uint8 *b)
-{
-    float c = v * s;
-    float x = c * (1 - fabsf(fmodf(h / 60.0f, 2) - 1));
-    float m = v - c;
-    float r1, g1, b1;
-
-    if (h < 60)
-        r1 = c, g1 = x, b1 = 0;
-    else if (h < 120)
-        r1 = x, g1 = c, b1 = 0;
-    else if (h < 180)
-        r1 = 0, g1 = c, b1 = x;
-    else if (h < 240)
-        r1 = 0, g1 = x, b1 = c;
-    else if (h < 300)
-        r1 = x, g1 = 0, b1 = c;
-    else
-        r1 = c, g1 = 0, b1 = x;
-
-    *r = (Uint8)((r1 + m) * 255);
-    *g = (Uint8)((g1 + m) * 255);
-    *b = (Uint8)((b1 + m) * 255);
-}
-
 // mesure largeur/hauteur d’un token (chaine UTF-8)
 static Size measure_text(TTF_Font *font, const char *s)
 {
@@ -38,6 +12,78 @@ static Size measure_text(TTF_Font *font, const char *s)
         return z;
     TTF_SizeUTF8(font, s, &z.width, &z.h);
     return z;
+}
+
+int init_SDL(Graphisme *gfx)
+{
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
+    {
+        fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
+        return 1;
+    }
+    if (TTF_Init() != 0)
+    {
+        fprintf(stderr, "TTF_Init: %s\n", TTF_GetError());
+        return 1;
+    }
+
+    // Init SDL_image
+    int img_flags = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+    if ((img_flags & (IMG_INIT_PNG | IMG_INIT_JPG)) == 0)
+    {
+        fprintf(stderr, "IMG_Init failed: %s\n", IMG_GetError());
+        // on continue quand même: mode couleur fallback
+    }
+
+    // Fenêtre + renderer d'abord !
+    gfx->width = WIN_WIDTH;
+    gfx->height = WIN_HEIGHT;
+    gfx->window = SDL_CreateWindow("Sort Visualizer",
+                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                   gfx->width, gfx->height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (!gfx->window)
+    {
+        fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    gfx->render = SDL_CreateRenderer(gfx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!gfx->render)
+    {
+        fprintf(stderr, "SDL_CreateRenderer: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    gfx->font = TTF_OpenFont("Coolvetica Rg.otf", 16);
+    if (!gfx->font)
+    {
+        fprintf(stderr, "TTF_OpenFont: %s\n", TTF_GetError());
+        return 1;
+    }
+
+    // Image optionnelle
+    gfx->img_texture = NULL;
+    gfx->img_width = gfx->img_height = 0;
+
+    SDL_Surface *img_surface = IMG_Load("ressources/image.jpeg"); // si tu la mets plus tard, garde ce code
+    if (!img_surface)
+    {
+        fprintf(stderr, "Warning: no image loaded (ressources/singe.jpeg). IMG_Load: %s\n", IMG_GetError());
+        return 1;
+    }
+
+    gfx->img_texture = SDL_CreateTextureFromSurface(gfx->render, img_surface);
+    if (!gfx->img_texture)
+    {
+        fprintf(stderr, "SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
+        SDL_FreeSurface(img_surface);
+        return 1;
+    }
+    gfx->img_width = img_surface->w;
+    gfx->img_height = img_surface->h;
+    SDL_FreeSurface(img_surface);
+
+    return 0;
 }
 
 // Dessine les tokens alignés à gauche, en retour à la ligne si dépassement
@@ -108,6 +154,42 @@ static void draw_tokens_left_wrap(SDL_Renderer *render, TTF_Font *font, const ch
         *out_bottom_y = cy + line_h; // baseline de fin
 }
 
+void draw_bar(Graphisme *graph, Array *arr, int i, SDL_Rect barRect)
+{
+    if (graph->img_texture)
+    {
+        int n = arr->n;           // nombre total d'éléments
+        int value = getA(arr, i); // valeur de la barre (sert à retrouver sa "part" d'image)
+
+        // Calcule la largeur d'une "tranche" de l'image
+        int slice_width = graph->img_width / n;
+
+        // Détermine la portion de l'image correspondant à CETTE valeur
+        SDL_Rect src;
+        src.x = value * slice_width;
+        src.w = slice_width;
+        src.h = graph->img_height;
+
+        // Si tu veux que la hauteur de l'image soit "coupée" selon la taille du rectangle :
+        int visible_height = (int)((barRect.h / (float)WIN_HEIGHT) * graph->img_height);
+        src.y = graph->img_height - visible_height;
+        src.h = visible_height;
+
+        // Destination à l'écran
+        SDL_Rect dest = barRect;
+        dest.y = WIN_HEIGHT - barRect.h; // bas aligné
+        dest.h = barRect.h;
+
+        SDL_RenderCopy(graph->render, graph->img_texture, &src, &dest);
+    }
+    else
+    {
+        // Fallback : couleur normale si pas d'image
+        SDL_SetRenderDrawColor(graph->render, 255, 255, 255, 255);
+        SDL_RenderFillRect(graph->render, &barRect);
+    }
+}
+
 void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *status)
 {
     SDL_SetRenderDrawColor(gfx->render, 20, 22, 28, 255); // fond
@@ -136,7 +218,6 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
     // --- 2) Construire les tokens BOTTOM (contrôles)
     const char *bot_tokens[] = {
         "[ESPACE] Lancer / Pause / Reprendre",
-        "[C] Annuler",
         "[B] Bubble", "[S] Selection", "[I] Insertion", "[Q] Quick", "[M] Merge",
         "[R] Nouveau tableau",
         "[UP/DOWN] Taille",
@@ -176,14 +257,56 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
         int h = (arr->a[i] * (avail_h - 2)) / (arr->maxVal > 0 ? arr->maxVal : 1);
         if (h < 1)
             h = 1;
+
         int x = i * bw;
         int y = avail_top + (avail_h - h);
-        if (i == status->hiA || i == status->hiB)
-            SDL_SetRenderDrawColor(gfx->render, 230, 90, 90, 255);
-        else
-            SDL_SetRenderDrawColor(gfx->render, 90, 170, 255, 255);
         SDL_Rect r = {x, y, bw - 1, h};
-        SDL_RenderFillRect(gfx->render, &r);
+        //TODO HAAAAAAAAAAAAAAA
+        if (gfx->img_texture)
+        {
+            // --- MODE IMAGE ---
+            int n = arr->n;
+            int value = arr->a[i]; // supposé dans [0..n-1] si tableau de permutation
+            if (value < 0)
+                value = 0;
+            if (value >= n)
+                value = n - 1;
+
+            // largeur d'une tranche théorique dans l’image
+            // mais pour coller le rectangle, on projette sur la largeur réelle du rect
+            int slice_x = (value * gfx->img_width) / n;
+            int slice_w = ((value + 1) * gfx->img_width) / n - slice_x; // tranche exacte pour cette "colonne"
+            if (slice_w <= 0)
+                slice_w = 1;
+
+            // Ajuster pour coller le dest : on mappe la tranche sur la largeur du rect
+            SDL_Rect src;
+            src.x = slice_x;
+            src.w = slice_w;
+
+            // hauteur visible proportionnelle à la hauteur de la barre
+            // on "coupe" par le bas pour que les petites barres n'affichent que le bas de l'image
+            int visible_h = (int)((r.h / (float)avail_h) * gfx->img_height);
+            if (visible_h < 1)
+                visible_h = 1;
+            if (visible_h > gfx->img_height)
+                visible_h = gfx->img_height;
+
+            src.y = gfx->img_height - visible_h;
+            src.h = visible_h;
+
+            SDL_RenderCopy(gfx->render, gfx->img_texture, &src, &r);
+        }
+        else
+        {
+            // --- FALLBACK COULEUR ---
+            if (i == status->hiA || i == status->hiB)
+                SDL_SetRenderDrawColor(gfx->render, 230, 90, 90, 255);
+            else
+                SDL_SetRenderDrawColor(gfx->render, 90, 170, 255, 255);
+
+            SDL_RenderFillRect(gfx->render, &r);
+        }
     }
 
     // Sous-titre (ex: “Comparaison”, “Echange”, etc.), au-dessus de la zone bas
@@ -203,7 +326,7 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
     }
 
     SDL_RenderPresent(gfx->render);
-    addFrame();
+    if (status->bSorting) addFrame();
 }
 
 void handle_key(Graphisme *gfx, Array *arr, Status *status)
@@ -224,6 +347,7 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
             {
             case SDLK_ESCAPE:
                 status->bRunning = false;
+                status->bAbort = true;
                 break;
             case SDLK_SPACE:
                 printf("handle_key space");
@@ -247,14 +371,6 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 print_keyboard_event(&e.key);
                 break;
 
-            case SDLK_c:
-                if (status->bSorting)
-                {
-                    status->bAbort = true;
-                    status->bSorting = false;
-                    status->bPaused = false;
-                }
-                break;
             case SDLK_r:
                 random_array(arr);
                 reset_metrics();
@@ -263,19 +379,8 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 status->bPaused = false;
                 status->bAbort = false;
                 status->bReseting = true;
-                render_array(gfx, arr, "", status); // redessine immédiatement
+                render_array(gfx, arr, "", status);
                 break;
-                /**
-                 * case SDLK_R:
-
-                status->bReseting = true;
-                random_array(arr);
-                reset_metrics();
-                status->bSorting = false;
-                status->bSorted = false;
-                status->bPaused = true;
-                break;
-                 */
 
             case SDLK_b:
                 status->aAlg = ALG_BUBBLE;
@@ -297,36 +402,43 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
             }
             break;
         case SDL_KEYDOWN:
-            switch (e.key.keysym.sym)
+            if (!status->bSorting)
             {
-            case SDLK_UP:
-                if (arr->n < MAX_N)
+                switch (e.key.keysym.sym)
                 {
-                    arr->n += 5;
-                    random_array(arr);
-                    status->bSorted = false;
-                    reset_metrics();
+                case SDLK_UP:
+                    if (arr->n < MAX_N)
+                    {
+                        arr->n += 5;
+                        random_array(arr);
+                        status->bSorted = false;
+                        reset_metrics();
+                    }
+                    break;
+                case SDLK_DOWN:
+                    if (arr->n > MIN_N)
+                    {
+                        arr->n -= 5;
+                        random_array(arr);
+                        status->bSorted = false;
+                        reset_metrics();
+                    }
+                default:
+                    break;
                 }
-                break;
-            case SDLK_DOWN:
-                if (arr->n > MIN_N)
-                {
-                    arr->n -= 5;
-                    random_array(arr);
-                    status->bSorted = false;
-                    reset_metrics();
-                }
-            default:
-                break;
             }
+
             break;
-        case SDL_WINDOWEVENT &&SDL_WINDOWEVENT_SIZE_CHANGED:
-            apply_resize(gfx, arr);
-            render_array(gfx, arr, status->bSorting ? (status->bPaused ? "PAUSE" : "EN COURS") : "Pret.", status);
+        case SDL_WINDOWEVENT:
+            if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                apply_resize(gfx, arr);
+                render_array(gfx, arr, "", status);
+            }
             break;
         default:
             break;
-            SDL_Delay(16);
+            SDL_Delay(DELAY_MS);
         }
     }
 }
@@ -339,7 +451,10 @@ void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle,
     if (status->bAbort)
         return;
 
-    update_time();
+    if (status->bSorting)
+    {
+        update_time();
+    }
     render_array(gfx, arr, subtitle, status);
 
     // Pause : on reste dans une boucle SDL non bloquante

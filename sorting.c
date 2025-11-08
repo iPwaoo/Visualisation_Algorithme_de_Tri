@@ -4,6 +4,14 @@
 #include "visual.h"
 #include "utils.h"
 
+void init_Array(Array *arr, Status *status)
+{
+    arr->n = INIT_N;
+    arr->a = malloc(MAX_N * sizeof(int));
+    arr->maxVal = arr->n;
+    random_array(arr);
+    status->bSorted = false;
+}
 
 void sort_bubble(Graphisme *gfx, Array *arr, Status *status)
 {

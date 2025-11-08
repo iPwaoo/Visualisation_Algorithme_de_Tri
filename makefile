@@ -1,7 +1,7 @@
 # --- Compilation settings ---
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -g `sdl2-config --cflags`
-LDFLAGS = `sdl2-config --libs` -lSDL2_ttf -lm
+LDFLAGS = `sdl2-config --libs` -lSDL2_ttf -lm -lSDL2_image
 
 # --- Source and build directories ---
 SRC = main.c sorting.c visual.c stats.c utils.c

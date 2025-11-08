@@ -32,9 +32,27 @@ const char *state_name(Status *status)
 
 void random_array(Array *arr)
 {
+    // Sécurité : borne haute
+    if (arr->n > MAX_N)
+        arr->n = MAX_N;
+
+    // Fixer la valeur max au nombre d'éléments
+    arr->maxVal = arr->n;
+
+    // Remplir le tableau avec une suite régulière : 1, 2, 3, ..., n
     for (int i = 0; i < arr->n; ++i)
-        arr->a[i] = 1 + rand() % ((arr->maxVal - 1 > 1) ? arr->maxVal - 1 : 1);
+        arr->a[i] = i + 1;
+
+    // Mélange de Fisher-Yates pour obtenir une permutation aléatoire
+    for (int i = arr->n - 1; i > 0; --i)
+    {
+        int j = rand() % (i + 1);
+        int tmp = arr->a[i];
+        arr->a[i] = arr->a[j];
+        arr->a[j] = tmp;
+    }
 }
+
 
 void print_status(Status *st)
 {

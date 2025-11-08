@@ -4,7 +4,6 @@
 
 Metrics metrics;
 static uint64_t t0_ticks = 0;
-static double perf_freq_ms = 1.0;
 
 void reset_metrics(void) {
     memset(&metrics, 0, sizeof(metrics));
@@ -12,12 +11,12 @@ void reset_metrics(void) {
 
 void start_timer(void) {
     t0_ticks = SDL_GetPerformanceCounter();
-    perf_freq_ms = 1000.0 / (double)SDL_GetPerformanceFrequency();
 }
 
 void update_time(void) {
     uint64_t t = SDL_GetPerformanceCounter();
-    metrics.elapsed_ms = (double)(t - t0_ticks) * perf_freq_ms;
+    double freq = (double)SDL_GetPerformanceFrequency();
+    metrics.elapsed_ms = (double)(t - t0_ticks) * 1000.0 / freq;
 }
 
 int getA(Array *arr, int i) {

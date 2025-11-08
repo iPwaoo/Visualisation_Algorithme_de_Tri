@@ -5,13 +5,14 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <SDL2/SDL_image.h>
 
 #define WIN_WIDTH 800
 #define WIN_HEIGHT 600
 #define MIN_N 10
 #define MAX_N 400
 #define INIT_N 100
-#define DELAY_MS 5
+#define DELAY_MS 16
 
 // Layout
 #define SIDE_MARGIN 12
@@ -39,6 +40,8 @@ typedef struct {
     SDL_Window *window;
     SDL_Renderer *render;
     TTF_Font *font;
+    SDL_Texture *img_texture;
+    int img_width, img_height;
     int width, height;
 } Graphisme;
 
