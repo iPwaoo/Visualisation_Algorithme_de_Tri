@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
     reset_metrics();
     start_timer();
     render_array(&gfx, &arr, "", status);
-    printf("Metrics.elapsed_ms : %f", get_metrics().elapsed_ms);
     status->bRunning = true;
     while (status->bRunning && !status->bAbort) {
         visual_tick(&gfx,&arr,status->highlight_a,status->highlight_a,"",status);
@@ -51,15 +50,12 @@ int main(int argc, char **argv) {
             break;
 
         if (status->bSorting) {
-            printf("sorting %d ", status->bSorting);
             fflush(stdout);
             switch (status->aAlg)
             {
             case ALG_BUBBLE:
                 sort_bubble(&gfx, &arr, status);
-                printf("sort_bubble ");
                 fflush(stdout);
-                print_status(status);
                 break;
             case ALG_SELECTION:
                 sort_selection(&gfx, &arr, status);

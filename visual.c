@@ -414,7 +414,6 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
-        print_keyboard_event(&e.key);
         switch (e.type)
         {
         case SDL_QUIT:
@@ -430,7 +429,6 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 status->bAbort = true;
                 break;
             case SDLK_SPACE:
-                printf("handle_key space");
                 fflush(stdout);
                 if (status->bSorting)
                 {
@@ -445,8 +443,6 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                     reset_metrics();
                     start_timer();
                 }
-                break;
-                print_keyboard_event(&e.key);
                 break;
 
             case SDLK_r:
