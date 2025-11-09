@@ -221,48 +221,6 @@ static void draw_tokens_left_wrap(SDL_Renderer *render, TTF_Font *font, const ch
 }
 
 /*
- * Function: draw_bar
- * ------------------
- * Draw a single bar of the array visualization. If an image texture is loaded,
- * paint a vertical slice of the image mapped to the bar. Otherwise, fill with color.
- *
- * graph: Graphisme context containing renderer and image texture info
- * arr: array object providing values
- * i: index of the bar to draw
- * barRect: destination rectangle on screen for the bar
- */
-void draw_bar(Graphisme *graph, Array *arr, int i, SDL_Rect barRect)
-{
-    if (graph->img_texture)
-    {
-        int n = arr->size;          
-        int value = get_value(arr, i); 
-
-        int slice_width = graph->img_width / n;
-
-        SDL_Rect src;
-        src.x = value * slice_width;
-        src.w = slice_width;
-        src.h = graph->img_height;
-
-        int visible_height = (int)((barRect.h / (float)WIN_HEIGHT) * graph->img_height);
-        src.y = graph->img_height - visible_height;
-        src.h = visible_height;
-
-        SDL_Rect dest = barRect;
-        dest.y = WIN_HEIGHT - barRect.h;
-        dest.h = barRect.h;
-
-        SDL_RenderCopy(graph->render, graph->img_texture, &src, &dest);
-    }
-    else
-    {
-        SDL_SetRenderDrawColor(graph->render, 255, 255, 255, 255);
-        SDL_RenderFillRect(graph->render, &barRect);
-    }
-}
-
-/*
  * Function: render_array
  * ----------------------
  * Render the full visualization frame: background, top tokens, bottom controls,
@@ -352,11 +310,9 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
             if (slice_w <= 0)
                 slice_w = 1;
 
-            
             SDL_Rect src;
             src.x = slice_x;
             src.w = slice_w;
-
 
             int visible_h = (int)((r.h / (float)avail_h) * gfx->img_height);
             if (visible_h < 1)
@@ -396,7 +352,7 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
     }
 
     SDL_RenderPresent(gfx->render);
-    if (status->bSorting) increment_frame();
+    if (status->bSorting && !status->bPaused) increment_frame();
 }
 
 /*
@@ -417,11 +373,10 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
         switch (e.type)
         {
         case SDL_QUIT:
+            status->bRunning = false;
             status->bAbort = true;
-            status->bSorting = false;
             break;
         case SDL_KEYUP:
-
             switch (e.key.keysym.sym)
             {
             case SDLK_ESCAPE:
@@ -429,10 +384,16 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 status->bAbort = true;
                 break;
             case SDLK_SPACE:
-                fflush(stdout);
                 if (status->bSorting)
                 {
                     status->bPaused = !status->bPaused;
+                    if (status->bPaused){
+                        pause_timer();
+                    }
+                    else
+                    {
+                        resume_timer();
+                    }
                 }
                 else
                 {
@@ -444,18 +405,20 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                     start_timer();
                 }
                 break;
-
+            
             case SDLK_r:
-                generate_random_array(arr);
-                reset_metrics();
-                status->bSorting = false;
-                status->bSorted = false;
-                status->bPaused = false;
-                status->bAbort = false;
-                status->bResetting = true;
-                render_array(gfx, arr, "", status);
+                if (status->bPaused)
+                {
+                    generate_random_array(arr);
+                    reset_metrics();
+                    status->bSorting = false;
+                    status->bSorted = false;
+                    status->bAbort = false;
+                    status->bResetting = true;
+                    render_array(gfx, arr, "", status);
+                }
                 break;
-
+            
             case SDLK_b:
                 status->aAlg = ALG_BUBBLE;
                 break;
@@ -543,8 +506,11 @@ void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle,
     }
     render_array(gfx, arr, subtitle, status);
 
-    while (status->bPaused && !status->bAbort)
+    while (status->bPaused)
     {
+        if (status->bAbort || status->bResetting)
+        break;
+        
         handle_key(gfx, arr, status);
         render_array(gfx, arr, "PAUSE", status);
         SDL_Delay(16);

@@ -26,7 +26,7 @@ const char *get_algorithm_name(Algorithm a)
 const char *get_state_name(Status *status)
 {
     if (status->bSorting)
-        return status->bPaused ? "PAUSE" : "EN COURS";
+        return status->bPaused ? "PAUSE 1" : "EN COURS";
     return status->bSorted ? "TERMINE" : "PRET";
 }
 
@@ -49,10 +49,10 @@ void generate_random_array(Array *arr)
     }
 }
 
-
 void print_status(Status *st)
 {
-    if (!st) {
+    if (!st)
+    {
         printf("Status = NULL\n");
         return;
     }
@@ -70,18 +70,19 @@ void print_status(Status *st)
 
 void print_keyboard_event(SDL_KeyboardEvent *ev)
 {
-    if (!ev) return;
+    if (!ev)
+        return;
 
     const char *type =
-        (ev->type == SDL_KEYDOWN) ? "KEYDOWN" :
-        (ev->type == SDL_KEYUP)   ? "KEYUP"   : "UNKNOWN";
+        (ev->type == SDL_KEYDOWN) ? "KEYDOWN" : (ev->type == SDL_KEYUP) ? "KEYUP"
+                                                                        : "UNKNOWN";
 
     const char *state =
-        (ev->state == SDL_PRESSED)  ? "PRESSED"  :
-        (ev->state == SDL_RELEASED) ? "RELEASED" : "???";
+        (ev->state == SDL_PRESSED) ? "PRESSED" : (ev->state == SDL_RELEASED) ? "RELEASED"
+                                                                             : "???";
 
     printf("---- SDL Keyboard Event ----\n");
-    printf(" Type:      %s (%"PRIu32") \n", type, ev->type);
+    printf(" Type:      %s (%" PRIu32 ") \n", type, ev->type);
     printf(" Timestamp: %u ms\n", ev->timestamp);
     printf(" WindowID:  %u\n", ev->windowID);
     printf(" State:     %s (%hhu)\n", state, ev->state);
@@ -92,4 +93,3 @@ void print_keyboard_event(SDL_KeyboardEvent *ev)
     printf("   Mod:      0x%x\n", ev->keysym.mod);
     printf("----------------------------\n");
 }
-

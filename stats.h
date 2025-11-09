@@ -15,6 +15,7 @@ void swap_indices(Graphisme *Graphisme, Array *arr, int i, int j, Status *status
 void increment_comparisons();
 Metrics get_metrics();
 void increment_frame();
-
+void pause_timer(void);
+void resume_timer(void);
 
 #endif

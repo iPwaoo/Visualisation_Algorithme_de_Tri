@@ -9,5 +9,4 @@ void generate_random_array(Array *arr);
 void print_status(Status *st);
 void print_keyboard_event(SDL_KeyboardEvent *ev);
 
-
 #endif
