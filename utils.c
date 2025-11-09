@@ -2,9 +2,9 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>   
+#include <inttypes.h>
 
-const char *algo_name(Algorithm a)
+const char *get_algorithm_name(Algorithm a)
 {
     switch (a)
     {
@@ -23,33 +23,29 @@ const char *algo_name(Algorithm a)
     }
 }
 
-const char *state_name(Status *status)
+const char *get_state_name(Status *status)
 {
     if (status->bSorting)
         return status->bPaused ? "PAUSE" : "EN COURS";
     return status->bSorted ? "TERMINE" : "PRET";
 }
 
-void random_array(Array *arr)
+void generate_random_array(Array *arr)
 {
-    // Sécurité : borne haute
-    if (arr->n > MAX_N)
-        arr->n = MAX_N;
+    if (arr->size > MAX_N)
+        arr->size = MAX_N;
 
-    // Fixer la valeur max au nombre d'éléments
-    arr->maxVal = arr->n;
+    arr->max_value = arr->size;
 
-    // Remplir le tableau avec une suite régulière : 1, 2, 3, ..., n
-    for (int i = 0; i < arr->n; ++i)
-        arr->a[i] = i + 1;
+    for (int i = 0; i < arr->size; ++i)
+        arr->array[i] = i + 1;
 
-    // Mélange de Fisher-Yates pour obtenir une permutation aléatoire
-    for (int i = arr->n - 1; i > 0; --i)
+    for (int i = arr->size - 1; i > 0; --i)
     {
         int j = rand() % (i + 1);
-        int tmp = arr->a[i];
-        arr->a[i] = arr->a[j];
-        arr->a[j] = tmp;
+        int tmp = arr->array[i];
+        arr->array[i] = arr->array[j];
+        arr->array[j] = tmp;
     }
 }
 
@@ -62,13 +58,13 @@ void print_status(Status *st)
     }
 
     printf("=== STATUS ===\n");
-    printf("Algo       : %s\n", algo_name(st->aAlg));
+    printf("Algo       : %s\n", get_algorithm_name(st->aAlg));
     printf("Sorting    : %s\n", st->bSorting ? "true" : "false");
     printf("Paused     : %s\n", st->bPaused ? "true" : "false");
     printf("Sorted     : %s\n", st->bSorted ? "true" : "false");
     printf("Abort      : %s\n", st->bAbort ? "true" : "false");
-    printf("Reseting      : %s\n", st->bReseting ? "true" : "false");
-    printf("hiA, hiB   : %d, %d\n", st->hiA, st->hiB);
+    printf("Reseting      : %s\n", st->bResetting ? "true" : "false");
+    printf("highlight_a, highlight_b   : %d, %d\n", st->highlight_a, st->highlight_b);
     printf("================\n");
 }
 

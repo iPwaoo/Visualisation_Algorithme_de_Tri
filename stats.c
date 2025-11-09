@@ -19,20 +19,20 @@ void update_time(void) {
     metrics.elapsed_ms = (double)(t - t0_ticks) * 1000.0 / freq;
 }
 
-int getA(Array *arr, int i) {
+int get_value(Array *arr, int i) {
     metrics.reads++;
-    return arr->a[i];
+    return arr->array[i];
 }
 
-void setA(Array *arr, int i, int v) {
+void set_value(Array *arr, int i, int v) {
     metrics.writes++;
-    arr->a[i] = v;
+    arr->array[i] = v;
 }
 
-int cmp_idx(Graphisme *Graphisme, Array *arr, int i, int j, Status *status)
+int compare_indices(Graphisme *Graphisme, Array *arr, int i, int j, Status *status)
 {
     metrics.comps++;
-    int vi = getA(arr, i), vj = getA(arr, j);
+    int vi = get_value(arr, i), vj = get_value(arr, j);
     visual_tick(Graphisme, arr, i, j, "Comparaison", status);
     if (vi < vj)
         return -1;
@@ -40,28 +40,28 @@ int cmp_idx(Graphisme *Graphisme, Array *arr, int i, int j, Status *status)
         return 1;
     return 0;
 }
-void swap_idx(Graphisme *Graphisme, Array *arr, int i, int j, Status *status)
+void swap_indices(Graphisme *Graphisme, Array *arr, int i, int j, Status *status)
 {
     if (i == j)
         return;
-    int tmp = getA(arr, i), vj = getA(arr, j);
-    setA(arr, i, vj);
-    setA(arr, j, tmp);
+    int tmp = get_value(arr, i), vj = get_value(arr, j);
+    set_value(arr, i, vj);
+    set_value(arr, j, tmp);
     metrics.swaps++;
     visual_tick(Graphisme, arr, i, j, "Echange", status);
 }
 
-void addComps()
+void increment_comparisons()
 {
     metrics.comps++;
 }
 
-Metrics getMetrics()
+Metrics get_metrics()
 {
     return metrics;
 }
 
-void addFrame()
+void increment_frame()
 {
     metrics.frames++;
 }

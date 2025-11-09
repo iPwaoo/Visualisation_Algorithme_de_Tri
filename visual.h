@@ -6,7 +6,7 @@
 void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *status);
 void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle, Status *status);
 void apply_resize(Graphisme *gfx, Array *arr);
-const char *algo_name(Algorithm algo);
+const char *get_algorithm_name(Algorithm algo);
 void handle_key(Graphisme *gfx, Array *arr, Status *status);
 void apply_resize(Graphisme *Graphisme, Array *arr);
 int init_SDL(Graphisme *gfx);

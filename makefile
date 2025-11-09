@@ -1,6 +1,6 @@
 # --- Compilation settings ---
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -g `sdl2-config --cflags`
+CFLAGS = -Werror -Wall -Wextra -std=c11 -g `sdl2-config --cflags`
 LDFLAGS = `sdl2-config --libs` -lSDL2_ttf -lm -lSDL2_image
 
 # --- Source and build directories ---

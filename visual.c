@@ -4,16 +4,34 @@
 #include "common.h"
 #include "utils.h"
 
-// mesure largeur/hauteur d’un token (chaine UTF-8)
+/*
+ * Function: measure_text
+ * ----------------------
+ * Measure the rendered width and height of a UTF-8 string using a TTF font.
+ *
+ * font: pointer to an opened TTF_Font
+ * s: UTF-8 C-string to measure
+ *
+ * returns: Size struct { width, height } with measured pixel dimensions.
+ */
 static Size measure_text(TTF_Font *font, const char *s)
 {
     Size z = {0, 0};
     if (!s || !*s)
         return z;
-    TTF_SizeUTF8(font, s, &z.width, &z.h);
+    TTF_SizeUTF8(font, s, &z.width, &z.height);
     return z;
 }
 
+/*
+ * Function: init_SDL
+ * ------------------
+ * Initialize SDL, TTF and IMG subsystems, create window, renderer and optionally load an image.
+ *
+ * gfx: pointer to Graphisme struct to populate (window, renderer, font, image texture, sizes).
+ *
+ * returns: 0 on success, non-zero on failure (and prints an error).
+ */
 int init_SDL(Graphisme *gfx)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
@@ -27,15 +45,12 @@ int init_SDL(Graphisme *gfx)
         return 1;
     }
 
-    // Init SDL_image
     int img_flags = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     if ((img_flags & (IMG_INIT_PNG | IMG_INIT_JPG)) == 0)
     {
         fprintf(stderr, "IMG_Init failed: %s\n", IMG_GetError());
-        // on continue quand même: mode couleur fallback
     }
 
-    // Fenêtre + renderer d'abord !
     gfx->width = WIN_WIDTH;
     gfx->height = WIN_HEIGHT;
     gfx->window = SDL_CreateWindow("Sort Visualizer",
@@ -61,11 +76,10 @@ int init_SDL(Graphisme *gfx)
         return 1;
     }
 
-    // Image optionnelle
     gfx->img_texture = NULL;
     gfx->img_width = gfx->img_height = 0;
 
-    SDL_Surface *img_surface = IMG_Load("ressources/image.jpeg"); // si tu la mets plus tard, garde ce code
+    SDL_Surface *img_surface = IMG_Load("ressources/image.jpeg"); 
     if (!img_surface)
     {
         fprintf(stderr, "Warning: no image loaded (ressources/singe.jpeg). IMG_Load: %s\n", IMG_GetError());
@@ -86,7 +100,18 @@ int init_SDL(Graphisme *gfx)
     return 0;
 }
 
-// Dessine les tokens alignés à gauche, en retour à la ligne si dépassement
+/*
+ * Function: layout_tokens_height
+ * ------------------------------
+ * Compute the vertical space (height) needed to layout a list of tokens (strings) with wrapping.
+ *
+ * font: font used to measure tokens
+ * tokens: array of C-strings
+ * count: number of tokens
+ * max_w: maximum width available for a line (in pixels)
+ *
+ * returns: total height in pixels needed for the wrapped tokens block.
+ */
 static int layout_tokens_height(TTF_Font *font, const char **tokens, int count, int max_w)
 {
     int line_w = 0, line_h = TTF_FontLineSkip(font), total_h = line_h;
@@ -113,7 +138,19 @@ static int layout_tokens_height(TTF_Font *font, const char **tokens, int count, 
     return total_h;
 }
 
-// Dessine les tokens alignés à gauche, en retour à la ligne si dépassement
+/*
+ * Function: draw_tokens_left_wrap
+ * -------------------------------
+ * Draw a list of tokens, left-aligned and wrapped when reaching max width.
+ *
+ * render: SDL_Renderer to draw onto
+ * font: TTF_Font used for rendering
+ * tokens/count: tokens to draw
+ * x,y: top-left origin where drawing starts
+ * max_w: maximum width allowed for wrapping
+ * col: text color
+ * out_bottom_y: optional out parameter receiving the baseline of the last line drawn
+ */
 static void draw_tokens_left_wrap(SDL_Renderer *render, TTF_Font *font, const char **tokens, int count,
                                   int x, int y, int max_w, SDL_Color col, int *out_bottom_y)
 {
@@ -127,14 +164,11 @@ static void draw_tokens_left_wrap(SDL_Renderer *render, TTF_Font *font, const ch
             continue;
         Size sz = measure_text(font, txt);
 
-        // retour à la ligne ?
         if (cx != x && cx + TOKEN_SPACING_X + sz.width > x + max_w)
         {
-            // nouvelle ligne
             cy += TOKEN_SPACING_Y + line_h;
             cx = x;
         }
-        // si début de ligne, pas d’espace; sinon ajouter le spacing
         if (cx != x)
             cx += TOKEN_SPACING_X;
 
@@ -147,75 +181,90 @@ static void draw_tokens_left_wrap(SDL_Renderer *render, TTF_Font *font, const ch
             SDL_RenderCopy(render, t, NULL, &dst);
             SDL_DestroyTexture(t);
             SDL_FreeSurface(s);
-            cx += sz.width; // avance
+            cx += sz.width; 
         }
     }
     if (out_bottom_y)
-        *out_bottom_y = cy + line_h; // baseline de fin
+        *out_bottom_y = cy + line_h; 
 }
 
+/*
+ * Function: draw_bar
+ * ------------------
+ * Draw a single bar of the array visualization. If an image texture is loaded,
+ * paint a vertical slice of the image mapped to the bar. Otherwise, fill with color.
+ *
+ * graph: Graphisme context containing renderer and image texture info
+ * arr: array object providing values
+ * i: index of the bar to draw
+ * barRect: destination rectangle on screen for the bar
+ */
 void draw_bar(Graphisme *graph, Array *arr, int i, SDL_Rect barRect)
 {
     if (graph->img_texture)
     {
-        int n = arr->n;           // nombre total d'éléments
-        int value = getA(arr, i); // valeur de la barre (sert à retrouver sa "part" d'image)
+        int n = arr->size;          
+        int value = get_value(arr, i); 
 
-        // Calcule la largeur d'une "tranche" de l'image
         int slice_width = graph->img_width / n;
 
-        // Détermine la portion de l'image correspondant à CETTE valeur
         SDL_Rect src;
         src.x = value * slice_width;
         src.w = slice_width;
         src.h = graph->img_height;
 
-        // Si tu veux que la hauteur de l'image soit "coupée" selon la taille du rectangle :
         int visible_height = (int)((barRect.h / (float)WIN_HEIGHT) * graph->img_height);
         src.y = graph->img_height - visible_height;
         src.h = visible_height;
 
-        // Destination à l'écran
         SDL_Rect dest = barRect;
-        dest.y = WIN_HEIGHT - barRect.h; // bas aligné
+        dest.y = WIN_HEIGHT - barRect.h;
         dest.h = barRect.h;
 
         SDL_RenderCopy(graph->render, graph->img_texture, &src, &dest);
     }
     else
     {
-        // Fallback : couleur normale si pas d'image
         SDL_SetRenderDrawColor(graph->render, 255, 255, 255, 255);
         SDL_RenderFillRect(graph->render, &barRect);
     }
 }
 
+/*
+ * Function: render_array
+ * ----------------------
+ * Render the full visualization frame: background, top tokens, bottom controls,
+ * the array bars (image or color), subtitle, and present the frame.
+ *
+ * gfx: Graphisme context (renderer, font, image)
+ * arr: array data to visualize
+ * subtitle: optional subtitle text (e.g. "Compare", "Swap")
+ * status: status struct that drives highlights, sorting state and metrics display
+ */
 void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *status)
 {
-    SDL_SetRenderDrawColor(gfx->render, 20, 22, 28, 255); // fond
+    SDL_SetRenderDrawColor(gfx->render, 20, 22, 28, 255);
     SDL_RenderClear(gfx->render);
 
     SDL_Color white = (SDL_Color){235, 235, 235, 255};
 
-    // --- 1) Construire les tokens TOP (stats + infos)
     char tAlgo[32], tEtat[32], tN[24], tReads[32], tWrites[32], tComps[32], tSwaps[32], tTime[32], tFrames[24];
-    snprintf(tAlgo, sizeof tAlgo, "Algorithme: %s", algo_name(status->aAlg));
-    snprintf(tEtat, sizeof tEtat, "Etat: %s", state_name(status));
-    snprintf(tN, sizeof tN, "N: %d", arr->n);
-    snprintf(tReads, sizeof tReads, "Lectures: %llu", (unsigned long long)getMetrics().reads);
-    snprintf(tWrites, sizeof tWrites, "Ecritures: %llu", (unsigned long long)getMetrics().writes);
-    snprintf(tComps, sizeof tComps, "Comparaisons: %llu", (unsigned long long)getMetrics().comps);
-    snprintf(tSwaps, sizeof tSwaps, "Swaps: %llu", (unsigned long long)getMetrics().swaps);
-    snprintf(tTime, sizeof tTime, "Temps: %.1f ms", getMetrics().elapsed_ms);
-    snprintf(tFrames, sizeof tFrames, "Frames: %llu", (unsigned long long)getMetrics().frames);
+    snprintf(tAlgo, sizeof tAlgo, "Algorithme: %s", get_algorithm_name(status->aAlg));
+    snprintf(tEtat, sizeof tEtat, "Etat: %s", get_state_name(status));
+    snprintf(tN, sizeof tN, "N: %d", arr->size);
+    snprintf(tReads, sizeof tReads, "Lectures: %llu", (unsigned long long)get_metrics().reads);
+    snprintf(tWrites, sizeof tWrites, "Ecritures: %llu", (unsigned long long)get_metrics().writes);
+    snprintf(tComps, sizeof tComps, "Comparaisons: %llu", (unsigned long long)get_metrics().comps);
+    snprintf(tSwaps, sizeof tSwaps, "Swaps: %llu", (unsigned long long)get_metrics().swaps);
+    snprintf(tTime, sizeof tTime, "Temps: %.1f ms", get_metrics().elapsed_ms);
+    snprintf(tFrames, sizeof tFrames, "Frames: %llu", (unsigned long long)get_metrics().frames);
 
     const char *top_tokens[] = {tAlgo, tEtat, tN, tReads, tWrites, tComps, tSwaps, tTime, tFrames};
     int top_count = (int)(sizeof(top_tokens) / sizeof(top_tokens[0]));
 
-    // Mesurer la hauteur occupée en haut
     int top_height = layout_tokens_height(gfx->font, top_tokens, top_count, gfx->width - 2 * SIDE_MARGIN);
     (void)top_height;
-    // --- 2) Construire les tokens BOTTOM (contrôles)
+
     const char *bot_tokens[] = {
         "[ESPACE] Lancer / Pause / Reprendre",
         "[B] Bubble", "[S] Selection", "[I] Insertion", "[Q] Quick", "[M] Merge",
@@ -226,66 +275,57 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
 
     int bottom_height = layout_tokens_height(gfx->font, bot_tokens, bot_count, gfx->width - 2 * SIDE_MARGIN);
 
-    // --- 3) Dessiner TOP (aligné à gauche, wrap)
     int after_top_y;
     draw_tokens_left_wrap(gfx->render, gfx->font, top_tokens, top_count,
                           SIDE_MARGIN, TOP_MARGIN, gfx->width - 2 * SIDE_MARGIN, white, &after_top_y);
 
-    // --- 4) Dessiner BOTTOM (aligné à gauche, wrap) au-dessus du bord bas
     int bottom_start_y = gfx->height - bottom_height - BOTTOM_PAD;
     int after_bottom_y;
     draw_tokens_left_wrap(gfx->render, gfx->font, bot_tokens, bot_count,
                           SIDE_MARGIN, bottom_start_y, gfx->width - 2 * SIDE_MARGIN, white, &after_bottom_y);
 
-    // --- 5) Zone centrale: barres
     int avail_top = after_top_y + BETWEEN_SECTIONS;
     int avail_bottom = bottom_start_y - BETWEEN_SECTIONS;
     int avail_h = avail_bottom - avail_top;
     if (avail_h < 40)
         avail_h = 40;
 
-    // Ajuster maxVal pour coller à la zone (préserve proportions)
-    arr->maxVal = avail_h - 8;
-    if (arr->maxVal < 10)
-        arr->maxVal = 10;
+    arr->max_value = avail_h - 8;
+    if (arr->max_value < 10)
+        arr->max_value = 10;
 
-    int bw = (gfx->width) / arr->n;
+    int bw = (gfx->width) / arr->size;
     if (bw < 1)
         bw = 1;
-    for (int i = 0; i < arr->n; ++i)
+    for (int i = 0; i < arr->size; ++i)
     {
-        int h = (arr->a[i] * (avail_h - 2)) / (arr->maxVal > 0 ? arr->maxVal : 1);
+        int h = (arr->array[i] * (avail_h - 2)) / (arr->max_value > 0 ? arr->max_value : 1);
         if (h < 1)
             h = 1;
 
         int x = i * bw;
         int y = avail_top + (avail_h - h);
         SDL_Rect r = {x, y, bw - 1, h};
-        //TODO HAAAAAAAAAAAAAAA
         if (gfx->img_texture)
         {
-            // --- MODE IMAGE ---
-            int n = arr->n;
-            int value = arr->a[i]; // supposé dans [0..n-1] si tableau de permutation
+            int n = arr->size;
+            int value = arr->array[i]; 
             if (value < 0)
                 value = 0;
             if (value >= n)
                 value = n - 1;
 
-            // largeur d'une tranche théorique dans l’image
-            // mais pour coller le rectangle, on projette sur la largeur réelle du rect
             int slice_x = (value * gfx->img_width) / n;
-            int slice_w = ((value + 1) * gfx->img_width) / n - slice_x; // tranche exacte pour cette "colonne"
+            int slice_w = ((value + 1) * gfx->img_width) / n - slice_x;
             if (slice_w <= 0)
                 slice_w = 1;
 
-            // Ajuster pour coller le dest : on mappe la tranche sur la largeur du rect
+            
             SDL_Rect src;
             src.x = slice_x;
             src.w = slice_w;
 
-            // hauteur visible proportionnelle à la hauteur de la barre
-            // on "coupe" par le bas pour que les petites barres n'affichent que le bas de l'image
+
             int visible_h = (int)((r.h / (float)avail_h) * gfx->img_height);
             if (visible_h < 1)
                 visible_h = 1;
@@ -299,8 +339,7 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
         }
         else
         {
-            // --- FALLBACK COULEUR ---
-            if (i == status->hiA || i == status->hiB)
+            if (i == status->highlight_a || i == status->highlight_b)
                 SDL_SetRenderDrawColor(gfx->render, 230, 90, 90, 255);
             else
                 SDL_SetRenderDrawColor(gfx->render, 90, 170, 255, 255);
@@ -309,7 +348,6 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
         }
     }
 
-    // Sous-titre (ex: “Comparaison”, “Echange”, etc.), au-dessus de la zone bas
     if (subtitle && *subtitle)
     {
         SDL_Surface *s = TTF_RenderUTF8_Blended(gfx->font, subtitle, white);
@@ -326,9 +364,19 @@ void render_array(Graphisme *gfx, Array *arr, const char *subtitle, Status *stat
     }
 
     SDL_RenderPresent(gfx->render);
-    if (status->bSorting) addFrame();
+    if (status->bSorting) increment_frame();
 }
 
+/*
+ * Function: handle_key
+ * --------------------
+ * Poll and handle SDL events (keyboard, window, quit). Update status and array
+ * accordingly (start/pause sorting, change algorithm, resize, generate new array).
+ *
+ * gfx: Graphisme context used for rendering or resizing calls
+ * arr: array object to modify on commands
+ * status: status object updated by keyboard events
+ */
 void handle_key(Graphisme *gfx, Array *arr, Status *status)
 {
     SDL_Event e;
@@ -354,12 +402,10 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 fflush(stdout);
                 if (status->bSorting)
                 {
-                    // Pause / reprise pendant le tri
                     status->bPaused = !status->bPaused;
                 }
                 else
                 {
-                    // Lancer ou relancer le tri
                     status->bSorting = true;
                     status->bPaused = false;
                     status->bSorted = false;
@@ -372,13 +418,13 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 break;
 
             case SDLK_r:
-                random_array(arr);
+                generate_random_array(arr);
                 reset_metrics();
                 status->bSorting = false;
                 status->bSorted = false;
                 status->bPaused = false;
                 status->bAbort = false;
-                status->bReseting = true;
+                status->bResetting = true;
                 render_array(gfx, arr, "", status);
                 break;
 
@@ -407,19 +453,19 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
                 switch (e.key.keysym.sym)
                 {
                 case SDLK_UP:
-                    if (arr->n < MAX_N)
+                    if (arr->size < MAX_N)
                     {
-                        arr->n += 5;
-                        random_array(arr);
+                        arr->size += 5;
+                        generate_random_array(arr);
                         status->bSorted = false;
                         reset_metrics();
                     }
                     break;
                 case SDLK_DOWN:
-                    if (arr->n > MIN_N)
+                    if (arr->size > MIN_N)
                     {
-                        arr->n -= 5;
-                        random_array(arr);
+                        arr->size -= 5;
+                        generate_random_array(arr);
                         status->bSorted = false;
                         reset_metrics();
                     }
@@ -443,10 +489,22 @@ void handle_key(Graphisme *gfx, Array *arr, Status *status)
     }
 }
 
+/*
+ * Function: visual_tick
+ * ---------------------
+ * Called frequently by sorting algorithms to update highlights, render a frame,
+ * apply pause behavior and handle user input.
+ *
+ * gfx: Graphisme context
+ * arr: array being sorted
+ * a,b: indices currently highlighted by the algorithm
+ * subtitle: descriptive text for the current operation
+ * status: status flags that control flow (paused, abort, sorting)
+ */
 void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle, Status *status)
 {
-    status->hiA = a;
-    status->hiB = b;
+    status->highlight_a = a;
+    status->highlight_b = b;
 
     if (status->bAbort)
         return;
@@ -457,7 +515,6 @@ void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle,
     }
     render_array(gfx, arr, subtitle, status);
 
-    // Pause : on reste dans une boucle SDL non bloquante
     while (status->bPaused && !status->bAbort)
     {
         handle_key(gfx, arr, status);
@@ -469,13 +526,21 @@ void visual_tick(Graphisme *gfx, Array *arr, int a, int b, const char *subtitle,
     SDL_Delay(DELAY_MS);
 }
 
+/*
+ * Function: apply_resize
+ * ----------------------
+ * Update stored window dimensions and compute an approximate max value for bars
+ * based on new window height so subsequent renders adapt to size changes.
+ *
+ * Graphisme: Graphisme context whose window size is read and width/height updated
+ * arr: array whose max_value is adjusted to match available vertical space
+ */
 void apply_resize(Graphisme *Graphisme, Array *arr)
 {
     SDL_GetWindowSize(Graphisme->window, &Graphisme->width, &Graphisme->height);
-    // maxVal = hauteur dispo (approximative) pour les barres; ajustée plus finement à chaque rendu
     int approx_top = TOP_MARGIN + TTF_FontLineSkip(Graphisme->font) * 2;
     int approx_bot = TTF_FontLineSkip(Graphisme->font) * 2 + BOTTOM_PAD;
-    arr->maxVal = Graphisme->height - approx_top - approx_bot - BETWEEN_SECTIONS * 2;
-    if (arr->maxVal < 10)
-        arr->maxVal = 10;
+    arr->max_value = Graphisme->height - approx_top - approx_bot - BETWEEN_SECTIONS * 2;
+    if (arr->max_value < 10)
+        arr->max_value = 10;
 }

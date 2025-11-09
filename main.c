@@ -4,11 +4,11 @@
 #include "visual.h"
 #include "stats.h"
 
-static void init_Status(Status *status)
+static void init_status(Status *status)
 {
     status->aAlg = ALG_BUBBLE;
-    status->hiA = -1;
-    status->hiB = -1;
+    status->highlight_a = -1;
+    status->highlight_b = -1;
 }
 
 //TODO init dans utils
@@ -17,21 +17,21 @@ int main(int argc, char **argv) {
     (void)argc; (void)argv;
     Status *status = status = calloc(1, sizeof(*status));
     if (!status) { perror("calloc status"); return 1; };
-    init_Status(status);
+    init_status(status);
 
     Graphisme gfx = {0};
     if(init_SDL(&gfx)) return 1;
 
     Array arr = {0};
-    init_Array(&arr,status);
+    init_array(&arr,status);
 
     reset_metrics();
     start_timer();
     render_array(&gfx, &arr, "", status);
-    printf("Metrics.elapsed_ms : %f", getMetrics().elapsed_ms);
+    printf("Metrics.elapsed_ms : %f", get_metrics().elapsed_ms);
     status->bRunning = true;
     while (status->bRunning && !status->bAbort) {
-        visual_tick(&gfx,&arr,status->hiA,status->hiA,"",status);
+        visual_tick(&gfx,&arr,status->highlight_a,status->highlight_a,"",status);
 
         if (status->bAbort)
             break;
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    free(arr.a);
+    free(arr.array);
     free(status);
     TTF_CloseFont(gfx.font);
     SDL_DestroyRenderer(gfx.render);

@@ -46,9 +46,9 @@ typedef struct {
 } Graphisme;
 
 typedef struct {
-    int *a;
-    int n;
-    int maxVal;
+    int *array;
+    int size;
+    int max_value;
 } Array;
 
 typedef struct {
@@ -57,15 +57,15 @@ typedef struct {
     bool bPaused;
     bool bAbort;
     Algorithm aAlg;
-    int hiA;
-    int hiB;
-    bool bReseting;
+    int highlight_a;
+    int highlight_b;
+    bool bResetting;
     bool bRunning;
 } Status;
 
 typedef struct
 {
-    int width, h;
+    int width, height;
 } Size;
 
 #endif
