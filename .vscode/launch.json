@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/main",
-            "args": [],
+            "args": ["singe.jpeg"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

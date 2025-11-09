@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <SDL2/SDL_image.h>
 
+#define URL_IMAGE "image.jpeg"
+
 #define WIN_WIDTH 800
 #define WIN_HEIGHT 600
 #define MIN_N 10
@@ -17,11 +19,10 @@
 // Layout
 #define SIDE_MARGIN 12
 #define TOP_MARGIN 12
-#define BETWEEN_SECTIONS 10 // espace entre haut / centre / bas
-#define TOKEN_SPACING_X 16  // espace horizontal entre “tokens”
-#define TOKEN_SPACING_Y 6   // espace vertical entre lignes de tokens
-#define BOTTOM_PAD 12       // marge interne en bas au-dessus de l’écran
-
+#define BETWEEN_SECTIONS 10 
+#define TOKEN_SPACING_X 16  
+#define TOKEN_SPACING_Y 6   
+#define BOTTOM_PAD 12       
 
 typedef enum {
     ALG_BUBBLE,

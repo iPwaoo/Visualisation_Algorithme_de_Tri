@@ -32,73 +32,105 @@ static Size measure_text(TTF_Font *font, const char *s)
  *
  * returns: 0 on success, non-zero on failure (and prints an error).
  */
-int init_SDL(Graphisme *gfx)
+int init_SDL(Graphisme *gfx, const char *image_path)
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
-    if (TTF_Init() != 0)
-    {
+
+    if (TTF_Init() != 0) {
         fprintf(stderr, "TTF_Init: %s\n", TTF_GetError());
+        SDL_Quit();
         return 1;
     }
 
     int img_flags = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
-    if ((img_flags & (IMG_INIT_PNG | IMG_INIT_JPG)) == 0)
-    {
+    if ((img_flags & (IMG_INIT_PNG | IMG_INIT_JPG)) == 0) {
         fprintf(stderr, "IMG_Init failed: %s\n", IMG_GetError());
+        TTF_Quit();
+        SDL_Quit();
+        return 1;
     }
+
+    FILE *f = fopen(image_path, "r");
+    if (!f) {
+        fprintf(stderr, "Erreur: impossible d’ouvrir le fichier image '%s'\n", image_path);
+        perror("fopen");
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
+        return 1;
+    }
+    fclose(f);
 
     gfx->width = WIN_WIDTH;
     gfx->height = WIN_HEIGHT;
     gfx->window = SDL_CreateWindow("Sort Visualizer",
                                    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                   gfx->width, gfx->height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    if (!gfx->window)
-    {
+                                   gfx->width, gfx->height,
+                                   SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (!gfx->window) {
         fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError());
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
         return 1;
     }
 
     gfx->render = SDL_CreateRenderer(gfx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!gfx->render)
-    {
+    if (!gfx->render) {
         fprintf(stderr, "SDL_CreateRenderer: %s\n", SDL_GetError());
+        SDL_DestroyWindow(gfx->window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
         return 1;
     }
 
     gfx->font = TTF_OpenFont("Coolvetica Rg.otf", 16);
-    if (!gfx->font)
-    {
+    if (!gfx->font) {
         fprintf(stderr, "TTF_OpenFont: %s\n", TTF_GetError());
+        SDL_DestroyRenderer(gfx->render);
+        SDL_DestroyWindow(gfx->window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
         return 1;
     }
 
-    gfx->img_texture = NULL;
-    gfx->img_width = gfx->img_height = 0;
-
-    SDL_Surface *img_surface = IMG_Load("ressources/image.jpeg"); 
-    if (!img_surface)
-    {
-        fprintf(stderr, "Warning: no image loaded (ressources/singe.jpeg). IMG_Load: %s\n", IMG_GetError());
+    SDL_Surface *img_surface = IMG_Load(image_path);
+    if (!img_surface) {
+        fprintf(stderr, "IMG_Load failed for '%s': %s\n", image_path, IMG_GetError());
+        TTF_CloseFont(gfx->font);
+        SDL_DestroyRenderer(gfx->render);
+        SDL_DestroyWindow(gfx->window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
         return 1;
     }
 
     gfx->img_texture = SDL_CreateTextureFromSurface(gfx->render, img_surface);
-    if (!gfx->img_texture)
-    {
+    if (!gfx->img_texture) {
         fprintf(stderr, "SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
         SDL_FreeSurface(img_surface);
+        TTF_CloseFont(gfx->font);
+        SDL_DestroyRenderer(gfx->render);
+        SDL_DestroyWindow(gfx->window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
         return 1;
     }
+
     gfx->img_width = img_surface->w;
     gfx->img_height = img_surface->h;
     SDL_FreeSurface(img_surface);
 
     return 0;
 }
+
 
 /*
  * Function: layout_tokens_height

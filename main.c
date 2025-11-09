@@ -11,16 +11,30 @@ static void init_status(Status *status)
     status->highlight_b = -1;
 }
 
-//TODO init dans utils
 
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
-    Status *status = status = calloc(1, sizeof(*status));
-    if (!status) { perror("calloc status"); return 1; };
+    char image_path[256];
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <image_file>\n", argv[0]);
+        fprintf(stderr, "Example: %s singe.jpeg\n", argv[0]);
+        snprintf(image_path, sizeof(image_path), "ressources/%s", URL_IMAGE);
+    }else
+    {    
+        snprintf(image_path, sizeof(image_path), "ressources/%s", argv[1]);
+
+    }
+
+    
+    Status *status = calloc(1, sizeof(*status));
+    if (!status) {
+        perror("calloc status");
+        return 1;
+    }
     init_status(status);
 
     Graphisme gfx = {0};
-    if(init_SDL(&gfx)) return 1;
+        if (init_SDL(&gfx, image_path)) return 1;
 
     Array arr = {0};
     init_array(&arr,status);

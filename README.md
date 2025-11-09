@@ -60,6 +60,21 @@ Once compiled, simply run:
 ./main
 ```
 
+#### 🖼️ Use a Custom Background Image
+
+You can also run the program with a **custom background image**.  
+Just place your image (either `.png` or `.jpeg`) inside the `ressources/` folder, then run:
+
+```bash
+./main image.png
+```
+or
+```bash
+./main image.jpeg
+```
+
+> ⚠️ The image **must** be located in the `ressources/` folder to be displayed.
+
 ---
 
 ## 🎮 Features and Controls

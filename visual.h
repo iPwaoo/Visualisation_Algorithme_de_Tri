@@ -9,6 +9,6 @@ void apply_resize(Graphisme *gfx, Array *arr);
 const char *get_algorithm_name(Algorithm algo);
 void handle_key(Graphisme *gfx, Array *arr, Status *status);
 void apply_resize(Graphisme *Graphisme, Array *arr);
-int init_SDL(Graphisme *gfx);
+int init_SDL(Graphisme *gfx, const char *image_path);
 
 #endif
